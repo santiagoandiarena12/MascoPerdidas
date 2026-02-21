@@ -16,7 +16,7 @@ public class Publicacion {
     private String titulo;
     private String descripcion;
 
-    private String tipo;
+    private TipoPublicacion tipo;
 
     // Ubicación exacta de ESTE reporte
     private Double latitudReporte;

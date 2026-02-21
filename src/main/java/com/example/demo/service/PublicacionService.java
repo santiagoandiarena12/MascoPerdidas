@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.ReporteMascotasCercanasDTO;
 import com.example.demo.entity.Mascota;
 import com.example.demo.entity.Publicacion;
+import com.example.demo.entity.TipoPublicacion;
 import com.example.demo.entity.Usuario;
 import com.example.demo.repository.MascotaRepo;
 import com.example.demo.repository.PublicacionRepo;
@@ -10,7 +11,6 @@ import com.example.demo.repository.UsuarioRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,29 +37,52 @@ public class PublicacionService {
         p.setMascota(mascota);
         Publicacion nueva = publicacionRepo.save(p);
 
-        List<Usuario> todos = usuarioRepo.findAll();
+        // Lógica diferenciada por Tipo
+        if (p.getTipo() == TipoPublicacion.PERDIDA) {
+            System.out.println("Iniciando alerta vecinal para: " + mascota.getNombre());
+            List<Usuario> todos = usuarioRepo.findAll();
 
-        for (Usuario u : todos) {
-            double dist = calcularDistancia(p.getLatitudReporte(), p.getLongitudReporte(),
-                    u.getLatitudCasa(), u.getLongitudCasa());
+            for (Usuario u : todos) {
+                double dist = calcularDistancia(p.getLatitudReporte(), p.getLongitudReporte(),
+                        u.getLatitudCasa(), u.getLongitudCasa());
 
-            if (!u.getId().equals(uId) && dist <= 2.0) {
-                System.out.println("!!ALERTA VECINAL ENCONTRADA: " + u.getNombre());
-                notificarVecino(u, p);
+                // Avisar a vecinos en 2km (excluyendo al autor)
+                if (!u.getId().equals(uId) && dist <= 2.0) {
+                    notificarVecino(u, p, dist);
+                    esperarParaMailtrap(); // Pausa para evitar el error
+                }
             }
         }
+        else if (p.getTipo() == TipoPublicacion.ENCONTRADA) {
+            //Avisar al dueño original de la mascota
+            Usuario duenio = mascota.getDuenio();
+
+            // Solo avisamos si el que la encuentra no es el propio dueño
+            if (!duenio.getId().equals(uId)) {
+                System.out.println("Mascota encontrada! Avisando al dueño: " + duenio.getNombre());
+                notificarVecino(duenio, p, 0.0);
+            }
+        }
+
         return nueva;
     }
 
-    private void notificarVecino(Usuario u, Publicacion p) {
-        emailService.enviarAlertaCercana(
-                u.getEmail(),
-                u.getNombre(),
-                p.getMascota().getNombre(),
-                p.getDescripcion(),
-                p.getMascota().getFotoUrl()
-        );
-        System.out.println("!! EMAIL HTML ENVIADO A: " + u.getNombre());
+    // Mtodo auxiliar para no saturar Mailtrap
+    private void esperarParaMailtrap() {
+        try {
+            Thread.sleep(1100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void notificarVecino(Usuario u, Publicacion p, double dist) {
+        try {
+            emailService.enviarAlertaCercana(u, p, dist);
+            System.out.println("!! EMAIL ENVIADO A: " + u.getNombre());
+        } catch (Exception e) {
+            System.err.println("Fallo el envío a " + u.getNombre() + " por límite de Mailtrap");
+        }
     }
 
     public List<Publicacion> listarTodas() {
