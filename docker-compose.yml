@@ -1,0 +1,27 @@
+services:
+  db-mascotas:
+    image: mysql:8.0
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: buscar_pet_db
+    ports:
+      - "3307:3306"
+    healthcheck: # Esto le avisa al sistema cuando MySQL está realmente listo
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend-app:
+    build: .
+    container_name: spring_backend
+    restart: always # <--- ESTO ES VITAL: Si falla por conexión, Docker lo reinicia solo
+    ports:
+      - "8080:8080"
+    depends_on:
+      db-mascotas:
+        condition: service_healthy # Espera a que el healthcheck de arriba pase
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-mascotas:3306/buscar_pet_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
