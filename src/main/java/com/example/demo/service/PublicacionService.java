@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PublicacionService {
@@ -29,6 +30,7 @@ public class PublicacionService {
     @Autowired
     private EmailService emailService;
 
+    // CREATE
     public Publicacion crearPublicacion(Long uId, Long mId, Publicacion p) {
         Usuario autor = usuarioRepo.findById(uId).orElseThrow();
         Mascota mascota = mascotaRepo.findById(mId).orElseThrow();
@@ -37,7 +39,6 @@ public class PublicacionService {
         p.setMascota(mascota);
         Publicacion nueva = publicacionRepo.save(p);
 
-        // Lógica diferenciada por Tipo
         if (p.getTipo() == TipoPublicacion.PERDIDA) {
             System.out.println("Iniciando alerta vecinal para: " + mascota.getNombre());
             List<Usuario> todos = usuarioRepo.findAll();
@@ -46,18 +47,15 @@ public class PublicacionService {
                 double dist = calcularDistancia(p.getLatitudReporte(), p.getLongitudReporte(),
                         u.getLatitudCasa(), u.getLongitudCasa());
 
-                // Avisar a vecinos en 2km (excluyendo al autor)
                 if (!u.getId().equals(uId) && dist <= 2.0) {
                     notificarVecino(u, p, dist);
-                    esperarParaMailtrap(); // Pausa para evitar el error
+                    esperarParaMailtrap();
                 }
             }
         }
         else if (p.getTipo() == TipoPublicacion.ENCONTRADA) {
-            //Avisar al dueño original de la mascota
             Usuario duenio = mascota.getDuenio();
 
-            // Solo avisamos si el que la encuentra no es el propio dueño
             if (!duenio.getId().equals(uId)) {
                 System.out.println("Mascota encontrada! Avisando al dueño: " + duenio.getNombre());
                 notificarVecino(duenio, p, 0.0);
@@ -67,7 +65,49 @@ public class PublicacionService {
         return nueva;
     }
 
-    // Mtodo auxiliar para no saturar Mailtrap
+    // READ - Obtener todas
+    public List<Publicacion> listarTodas() {
+        return publicacionRepo.findAll();
+    }
+
+    // READ - Obtener por ID
+    public Optional<Publicacion> obtenerPorId(Long id) {
+        return publicacionRepo.findById(id);
+    }
+
+    // READ - Obtener por tipo
+    public List<Publicacion> obtenerPorTipo(TipoPublicacion tipo) {
+        return publicacionRepo.findByTipo(tipo);
+    }
+
+    // READ - Obtener por autor
+    public List<Publicacion> obtenerPorAutor(Long usuarioId) {
+        return publicacionRepo.findByAutorId(usuarioId);
+    }
+
+    // UPDATE
+    public Publicacion actualizarPublicacion(Long id, Publicacion publicacionActualizada) {
+        return publicacionRepo.findById(id)
+                .map(p -> {
+                    p.setTitulo(publicacionActualizada.getTitulo());
+                    p.setDescripcion(publicacionActualizada.getDescripcion());
+                    p.setTipo(publicacionActualizada.getTipo());
+                    p.setLatitudReporte(publicacionActualizada.getLatitudReporte());
+                    p.setLongitudReporte(publicacionActualizada.getLongitudReporte());
+                    return publicacionRepo.save(p);
+                })
+                .orElseThrow(() -> new RuntimeException("Publicación no encontrada"));
+    }
+
+    // DELETE
+    public void eliminarPublicacion(Long id) {
+        if (!publicacionRepo.existsById(id)) {
+            throw new RuntimeException("Publicación no encontrada");
+        }
+        publicacionRepo.deleteById(id);
+    }
+
+    // Métodos auxiliares existentes
     private void esperarParaMailtrap() {
         try {
             Thread.sleep(1100);
@@ -85,12 +125,7 @@ public class PublicacionService {
         }
     }
 
-    public List<Publicacion> listarTodas() {
-        return publicacionRepo.findAll();
-    }
-
     public List<ReporteMascotasCercanasDTO> buscarCercanas(Double latUser, Double longUser, Double radioKm) {
-
         List<Publicacion> todas = publicacionRepo.findAll();
         List<ReporteMascotasCercanasDTO> cercanas = new ArrayList<>();
 
@@ -98,23 +133,22 @@ public class PublicacionService {
             double distancia = calcularDistancia(latUser, longUser, p.getLatitudReporte(), p.getLongitudReporte());
 
             if(distancia <= radioKm){
-                    cercanas.add( new ReporteMascotasCercanasDTO(
-                            p.getTitulo(),
-                            p.getMascota().getNombre(),
-                            p.getMascota().getEspecie(),
-                            p.getDescripcion(),
-                            p.getLatitudReporte(),
-                            p.getLongitudReporte(),
-                            distancia
-                    ));
+                cercanas.add( new ReporteMascotasCercanasDTO(
+                        p.getTitulo(),
+                        p.getMascota().getNombre(),
+                        p.getMascota().getEspecie(),
+                        p.getDescripcion(),
+                        p.getLatitudReporte(),
+                        p.getLongitudReporte(),
+                        distancia
+                ));
             }
         }
         return cercanas;
     }
 
-    //calcular distancia mediante formula
     public double calcularDistancia(double lat1, double lon1, double lat2, double lon2){
-        double earthRadius = 6371; // Kilómetros
+        double earthRadius = 6371;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -123,5 +157,4 @@ public class PublicacionService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return earthRadius * c;
     }
-
 }
