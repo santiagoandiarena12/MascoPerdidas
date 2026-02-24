@@ -13,8 +13,9 @@ Este documento proporciona una guía completa de todos los endpoints disponibles
 3. [Autenticación y Seguridad](#autenticación-y-seguridad)
 4. [Usuarios - Endpoints](#usuarios---endpoints)
 5. [Mascotas - Endpoints](#mascotas---endpoints)
-6. [Códigos de Estado HTTP](#códigos-de-estado-http)
-7. [Ejemplos Prácticos](#ejemplos-prácticos)
+6. [Publicaciones - Endpoints](#publicaciones---endpoints)
+7. [Códigos de Estado HTTP](#códigos-de-estado-http)
+8. [Ejemplos Prácticos](#ejemplos-prácticos)
 
 ---
 
@@ -43,15 +44,25 @@ API Base: http://localhost:8080/api
 │   ├── POST   /{usuarioId}/cambiar-password → Cambiar contraseña
 │   └── DELETE /{usuarioId}                 → Eliminar usuario
 │
-└── /mascotas
-    ├── POST   /usuario/{usuarioId}                     → Crear mascota
+├── /mascotas
+│   ├── POST   /usuario/{usuarioId}                     → Crear mascota
+│   ├── GET    /                                        → Listar todas
+│   ├── GET    /{id}                                    → Obtener por ID
+│   ├── GET    /usuario/{usuarioId}                     → Mascotas de un usuario
+│   ├── GET    /buscar?nombre={nombre}                  → Búsqueda general
+│   ├── GET    /usuario/{usuarioId}/buscar?nombre={...} → Búsqueda por usuario
+│   ├── PUT    /{mascotaId}/usuario/{usuarioId}         → Actualizar (seguro)
+│   └── DELETE /{mascotaId}/usuario/{usuarioId}         → Eliminar (seguro)
+│
+└── /publicaciones
+    ├── POST   /?usuarioId={id}&mascotaId={id}          → Crear publicación
     ├── GET    /                                        → Listar todas
     ├── GET    /{id}                                    → Obtener por ID
-    ├── GET    /usuario/{usuarioId}                     → Mascotas de un usuario
-    ├── GET    /buscar?nombre={nombre}                  → Búsqueda general
-    ├── GET    /usuario/{usuarioId}/buscar?nombre={...} → Búsqueda por usuario
-    ├── PUT    /{mascotaId}/usuario/{usuarioId}         → Actualizar (seguro)
-    └── DELETE /{mascotaId}/usuario/{usuarioId}         → Eliminar (seguro)
+    ├── GET    /tipo/{tipo}                             → Obtener por tipo (PERDIDO/ENCONTRADO)
+    ├── GET    /autor/{usuarioId}                       → Obtener por autor
+    ├── GET    /cercanas?latitud={lat}&longitud={lon}&radioKm={km} → Buscar cercanas
+    ├── PUT    /{id}                                    → Actualizar publicación
+    └── DELETE /{id}                                    → Eliminar publicación
 ```
 
 ---
@@ -73,6 +84,13 @@ API Base: http://localhost:8080/api
 - ✅ **Validación de usuario** - Debe existir en la BD
 - ✅ **Datos obligatorios** - Nombre y especie requeridos
 - ✅ **Límites de caracteres** - Nombre máx 50 caracteres
+
+#### 📢 En Publicaciones:
+- ✅ **Validación de usuario y mascota** - Ambos deben existir
+- ✅ **Tipos válidos** - Solo PERDIDO o ENCONTRADO
+- ✅ **Sistema de alertas** - Notifica vecinos cercanos automáticamente
+- ✅ **Coordenadas obligatorias** - Latitud y longitud del reporte
+- ✅ **Búsqueda geográfica** - Encuentra mascotas por radio de distancia
 
 ---
 
@@ -253,6 +271,97 @@ Restricción: Solo el dueño puede eliminar
 
 ---
 
+## 📢 PUBLICACIONES - Endpoints
+
+### 1. Crear Publicación
+```
+POST /api/publicaciones?usuarioId={usuarioId}&mascotaId={mascotaId}
+Content-Type: application/json
+
+{
+  "titulo": "Perro perdido en el parque",
+  "descripcion": "Golden Retriever de 3 años, muy amigable",
+  "tipo": "PERDIDO",
+  "latitudReporte": -34.6037,
+  "longitudReporte": -58.3816
+}
+
+Respuesta: 201 CREATED
+Tipos válidos: "PERDIDO" o "ENCONTRADO"
+Nota: Si es PERDIDO, notifica automáticamente a vecinos en radio de 2km
+```
+
+### 2. Listar Todas las Publicaciones
+```
+GET /api/publicaciones
+
+Respuesta: 200 OK
+Array de todas las publicaciones
+```
+
+### 3. Obtener Publicación por ID
+```
+GET /api/publicaciones/{id}
+
+Ejemplo: GET /api/publicaciones/1
+Respuesta: 200 OK
+```
+
+### 4. Obtener Publicaciones por Tipo
+```
+GET /api/publicaciones/tipo/{tipo}
+
+Ejemplo: GET /api/publicaciones/tipo/PERDIDO
+Ejemplo: GET /api/publicaciones/tipo/ENCONTRADO
+
+Respuesta: 200 OK (Array de publicaciones del tipo especificado)
+Tipos válidos: PERDIDO, ENCONTRADO
+```
+
+### 5. Obtener Publicaciones por Autor
+```
+GET /api/publicaciones/autor/{usuarioId}
+
+Ejemplo: GET /api/publicaciones/autor/1
+Respuesta: 200 OK (Array de publicaciones del usuario)
+```
+
+### 6. Buscar Publicaciones Cercanas (Búsqueda Geográfica)
+```
+GET /api/publicaciones/cercanas?latitud={lat}&longitud={lon}&radioKm={km}
+
+Ejemplo: GET /api/publicaciones/cercanas?latitud=-34.6037&longitud=-58.3816&radioKm=5
+
+Respuesta: 200 OK
+Retorna: Array de publicaciones dentro del radio especificado
+Incluye: Nombre mascota, especie, descripción, coordenadas y distancia
+```
+
+### 7. Actualizar Publicación
+```
+PUT /api/publicaciones/{id}
+Content-Type: application/json
+
+{
+  "titulo": "Título actualizado",
+  "descripcion": "Nueva descripción",
+  "tipo": "ENCONTRADO",
+  "latitudReporte": -34.6037,
+  "longitudReporte": -58.3816
+}
+
+Respuesta: 200 OK
+```
+
+### 8. Eliminar Publicación
+```
+DELETE /api/publicaciones/{id}
+
+Respuesta: 204 NO CONTENT
+```
+
+---
+
 ## 📊 Códigos de Estado HTTP
 
 | Código | Significado | Uso |
@@ -270,7 +379,7 @@ Restricción: Solo el dueño puede eliminar
 
 ## 💡 Ejemplos Prácticos
 
-### Flujo Completo: Registrar Usuario con Mascota
+### Flujo Completo: Registrar Usuario, Mascota y Publicación
 
 #### 1. Registrar usuario
 ```bash
@@ -279,7 +388,9 @@ curl -X POST http://localhost:8080/api/usuarios/registro \
   -d '{
     "nombre": "Juan Pérez",
     "email": "juan@example.com",
-    "password": "miPassword123"
+    "password": "miPassword123",
+    "latitudCasa": -34.6037,
+    "longitudCasa": -58.3816
   }'
 
 # Respuesta: { "id": 1, "nombre": "Juan Pérez", ... }
@@ -298,26 +409,52 @@ curl -X POST http://localhost:8080/api/mascotas/usuario/1 \
 # Respuesta: { "id": 1, "nombre": "Firulais", "duenio": { "id": 1, ... } }
 ```
 
-#### 3. Buscar la mascota
+#### 3. Crear publicación de mascota perdida
+```bash
+curl -X POST "http://localhost:8080/api/publicaciones?usuarioId=1&mascotaId=1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "Firulais perdido en el parque",
+    "descripcion": "Perro Labrador dorado, muy amigable",
+    "tipo": "PERDIDO",
+    "latitudReporte": -34.6037,
+    "longitudReporte": -58.3816
+  }'
+
+# Respuesta: { "id": 1, ... }
+# Nota: Se envían automáticamente emails a vecinos en radio de 2km
+```
+
+#### 4. Buscar mascotas perdidas cercanas
+```bash
+curl "http://localhost:8080/api/publicaciones/cercanas?latitud=-34.6037&longitud=-58.3816&radioKm=5"
+
+# Respuesta: Array con publicaciones cercanas y distancia
+```
+
+#### 5. Buscar la mascota
 ```bash
 curl http://localhost:8080/api/mascotas/usuario/1/buscar?nombre=Firu
 
 # Respuesta: Array con mascotas que coinciden
 ```
 
-#### 4. Actualizar mascota
+#### 6. Actualizar publicación cuando se encuentra
 ```bash
-curl -X PUT http://localhost:8080/api/mascotas/1/usuario/1 \
+curl -X PUT http://localhost:8080/api/publicaciones/1 \
   -H "Content-Type: application/json" \
   -d '{
-    "nombre": "Firulais Actualizado",
-    "raza": "Golden Retriever"
+    "titulo": "Firulais encontrado!",
+    "descripcion": "Mascota encontrada sana y salva",
+    "tipo": "ENCONTRADO",
+    "latitudReporte": -34.6037,
+    "longitudReporte": -58.3816
   }'
 
-# Respuesta: Mascota actualizada
+# Respuesta: Publicación actualizada
 ```
 
-#### 5. Cambiar contraseña del usuario
+#### 7. Cambiar contraseña del usuario
 ```bash
 curl -X POST http://localhost:8080/api/usuarios/1/cambiar-password \
   -H "Content-Type: application/json" \
@@ -386,7 +523,9 @@ curl -X POST http://localhost:8080/api/usuarios/registro \
   -d '{
     "nombre": "Tu Nombre",
     "email": "tu@email.com",
-    "password": "password123"
+    "password": "password123",
+    "latitudCasa": -34.6037,
+    "longitudCasa": -58.3816
   }'
 ```
 
@@ -403,7 +542,25 @@ curl -X POST http://localhost:8080/api/mascotas/usuario/{usuarioId} \
   }'
 ```
 
-### 5. **Probar otros endpoints**
+### 5. **Crear publicación de mascota perdida**
+```bash
+curl -X POST "http://localhost:8080/api/publicaciones?usuarioId={usuarioId}&mascotaId={mascotaId}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "Mascota perdida",
+    "descripcion": "Se perdió en el parque",
+    "tipo": "PERDIDO",
+    "latitudReporte": -34.6037,
+    "longitudReporte": -58.3816
+  }'
+```
+
+### 6. **Buscar mascotas cercanas**
+```bash
+curl "http://localhost:8080/api/publicaciones/cercanas?latitud=-34.6037&longitud=-58.3816&radioKm=5"
+```
+
+### 7. **Probar otros endpoints**
 
 ---
 
@@ -429,6 +586,12 @@ curl -X POST http://localhost:8080/api/mascotas/usuario/{usuarioId} \
 - [ ] Búsqueda de mascotas funciona
 - [ ] Actualización de mascotas funciona (solo dueño)
 - [ ] Eliminación de mascotas funciona (solo dueño)
+- [ ] Creación de publicaciones funciona
+- [ ] Búsqueda de publicaciones por tipo funciona
+- [ ] Búsqueda geográfica de publicaciones funciona
+- [ ] Sistema de alertas por email funciona (radio 2km)
+- [ ] Actualización de publicaciones funciona
+- [ ] Eliminación de publicaciones funciona
 - [ ] Eliminación de usuario (sin mascotas) funciona
 - [ ] Códigos HTTP son correctos
 
