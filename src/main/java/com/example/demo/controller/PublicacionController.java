@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.error.ErrorResponse;
 import com.example.demo.dto.ReporteMascotasCercanasDTO;
 import com.example.demo.entity.Publicacion;
 import com.example.demo.entity.TipoPublicacion;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/publicaciones")
+@CrossOrigin(origins = "*")
 public class PublicacionController {
 
     @Autowired
@@ -20,12 +22,22 @@ public class PublicacionController {
 
     // CREATE
     @PostMapping
-    public ResponseEntity<Publicacion> crearPublicacion(
+    public ResponseEntity<?> crearPublicacion(
             @RequestParam Long usuarioId,
             @RequestParam Long mascotaId,
             @RequestBody Publicacion publicacion) {
-        Publicacion nueva = publicacionService.crearPublicacion(usuarioId, mascotaId, publicacion);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
+        try {
+            Publicacion nueva = publicacionService.crearPublicacion(usuarioId, mascotaId, publicacion);
+            return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
+        } catch (RuntimeException e) {
+            ErrorResponse error = new ErrorResponse(
+                400,
+                "Bad Request",
+                e.getMessage(),
+                "/api/publicaciones"
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
     }
 
     // READ - Obtener todas
@@ -37,57 +49,107 @@ public class PublicacionController {
 
     // READ - Obtener por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Publicacion> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<?> obtenerPorId(@PathVariable Long id) {
         return publicacionService.obtenerPorId(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(publicacion -> ResponseEntity.ok((Object) publicacion))
+                .orElseGet(() -> {
+                    ErrorResponse error = new ErrorResponse(
+                        404,
+                        "Not Found",
+                        "Publicación no encontrada con ID: " + id,
+                        "/api/publicaciones/" + id
+                    );
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                });
     }
 
     // READ - Obtener por tipo
     @GetMapping("/tipo/{tipo}")
-    public ResponseEntity<List<Publicacion>> obtenerPorTipo(@PathVariable TipoPublicacion tipo) {
-        List<Publicacion> publicaciones = publicacionService.obtenerPorTipo(tipo);
-        return ResponseEntity.ok(publicaciones);
+    public ResponseEntity<?> obtenerPorTipo(@PathVariable TipoPublicacion tipo) {
+        try {
+            List<Publicacion> publicaciones = publicacionService.obtenerPorTipo(tipo);
+            return ResponseEntity.ok(publicaciones);
+        } catch (RuntimeException e) {
+            ErrorResponse error = new ErrorResponse(
+                400,
+                "Bad Request",
+                e.getMessage(),
+                "/api/publicaciones/tipo/" + tipo
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
     }
 
     // READ - Obtener por autor
     @GetMapping("/autor/{usuarioId}")
-    public ResponseEntity<List<Publicacion>> obtenerPorAutor(@PathVariable Long usuarioId) {
-        List<Publicacion> publicaciones = publicacionService.obtenerPorAutor(usuarioId);
-        return ResponseEntity.ok(publicaciones);
+    public ResponseEntity<?> obtenerPorAutor(@PathVariable Long usuarioId) {
+        try {
+            List<Publicacion> publicaciones = publicacionService.obtenerPorAutor(usuarioId);
+            return ResponseEntity.ok(publicaciones);
+        } catch (RuntimeException e) {
+            ErrorResponse error = new ErrorResponse(
+                404,
+                "Not Found",
+                e.getMessage(),
+                "/api/publicaciones/autor/" + usuarioId
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
     }
 
     // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Publicacion> actualizarPublicacion(
+    public ResponseEntity<?> actualizarPublicacion(
             @PathVariable Long id,
             @RequestBody Publicacion publicacion) {
         try {
             Publicacion actualizada = publicacionService.actualizarPublicacion(id, publicacion);
             return ResponseEntity.ok(actualizada);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            ErrorResponse error = new ErrorResponse(
+                404,
+                "Not Found",
+                e.getMessage(),
+                "/api/publicaciones/" + id
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
     }
 
     // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarPublicacion(@PathVariable Long id) {
+    public ResponseEntity<?> eliminarPublicacion(@PathVariable Long id) {
         try {
             publicacionService.eliminarPublicacion(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            ErrorResponse error = new ErrorResponse(
+                404,
+                "Not Found",
+                e.getMessage(),
+                "/api/publicaciones/" + id
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
         }
     }
 
     // Búsqueda de mascotas cercanas
     @GetMapping("/cercanas")
-    public ResponseEntity<List<ReporteMascotasCercanasDTO>> buscarCercanas(
+    public ResponseEntity<?> buscarCercanas(
             @RequestParam Double latitud,
             @RequestParam Double longitud,
             @RequestParam Double radioKm) {
-        List<ReporteMascotasCercanasDTO> cercanas = publicacionService.buscarCercanas(latitud, longitud, radioKm);
-        return ResponseEntity.ok(cercanas);
+        try {
+            List<ReporteMascotasCercanasDTO> cercanas = publicacionService.buscarCercanas(latitud, longitud, radioKm);
+            return ResponseEntity.ok(cercanas);
+        } catch (RuntimeException e) {
+            ErrorResponse error = new ErrorResponse(
+                400,
+                "Bad Request",
+                e.getMessage(),
+                "/api/publicaciones/cercanas"
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
     }
 }

@@ -16,6 +16,7 @@ public class Publicacion {
     private String titulo;
     private String descripcion;
 
+    @Enumerated(EnumType.STRING)
     private TipoPublicacion tipo;
 
     // Ubicación exacta de ESTE reporte

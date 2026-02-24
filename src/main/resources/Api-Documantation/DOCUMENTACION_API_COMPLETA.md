@@ -1,0 +1,470 @@
+# 📚 Documentación Completa de API REST - Buscar Pet
+
+## Resumen General
+
+Este documento proporciona una guía completa de todos los endpoints disponibles en la API REST de **Buscar Pet**, incluyendo operaciones CRUD para **Usuarios** y **Mascotas**.
+
+---
+
+## 🗂️ Índice de Documentación
+
+1. [Visión General](#visión-general)
+2. [Estructura de la API](#estructura-de-la-api)
+3. [Autenticación y Seguridad](#autenticación-y-seguridad)
+4. [Usuarios - Endpoints](#usuarios---endpoints)
+5. [Mascotas - Endpoints](#mascotas---endpoints)
+6. [Códigos de Estado HTTP](#códigos-de-estado-http)
+7. [Ejemplos Prácticos](#ejemplos-prácticos)
+
+---
+
+## 🎯 Visión General
+
+**Buscar Pet** es una plataforma para:
+- 📋 Gestión de **usuarios** (registro, actualización, cambio de contraseña)
+- 🐾 Gestión de **mascotas** (registro de mascotas por usuario)
+- 🔍 Búsqueda de mascotas perdidas/encontradas
+- 📍 Sistema de alertas por ubicación geográfica
+
+---
+
+## 🏗️ Estructura de la API
+
+```
+API Base: http://localhost:8080/api
+
+├── /usuarios
+│   ├── POST   /registro                    → Registrar nuevo usuario
+│   ├── GET    /                            → Listar todos los usuarios
+│   ├── GET    /{id}                        → Obtener usuario por ID
+│   ├── GET    /email/{email}               → Obtener usuario por email
+│   ├── GET    /buscar?nombre={nombre}      → Buscar usuarios por nombre
+│   ├── PUT    /{usuarioId}                 → Actualizar perfil
+│   ├── POST   /{usuarioId}/cambiar-password → Cambiar contraseña
+│   └── DELETE /{usuarioId}                 → Eliminar usuario
+│
+└── /mascotas
+    ├── POST   /usuario/{usuarioId}                     → Crear mascota
+    ├── GET    /                                        → Listar todas
+    ├── GET    /{id}                                    → Obtener por ID
+    ├── GET    /usuario/{usuarioId}                     → Mascotas de un usuario
+    ├── GET    /buscar?nombre={nombre}                  → Búsqueda general
+    ├── GET    /usuario/{usuarioId}/buscar?nombre={...} → Búsqueda por usuario
+    ├── PUT    /{mascotaId}/usuario/{usuarioId}         → Actualizar (seguro)
+    └── DELETE /{mascotaId}/usuario/{usuarioId}         → Eliminar (seguro)
+```
+
+---
+
+## 🔒 Autenticación y Seguridad
+
+### Verificaciones Implementadas
+
+#### 👤 En Usuarios:
+- ✅ **Email único** - No se permite duplicados
+- ✅ **Email válido** - Validación de formato
+- ✅ **Contraseña fuerte** - Mínimo 6 caracteres
+- ✅ **Protección de datos** - No se puede cambiar email por PUT
+- ✅ **Verificación de identidad** - Password actual requerida para cambio
+- ✅ **Protección de orfandad** - No eliminar si tiene mascotas
+
+#### 🐾 En Mascotas:
+- ✅ **Verificación de propiedad** - Solo el dueño puede actualizar/eliminar
+- ✅ **Validación de usuario** - Debe existir en la BD
+- ✅ **Datos obligatorios** - Nombre y especie requeridos
+- ✅ **Límites de caracteres** - Nombre máx 50 caracteres
+
+---
+
+## 👤 USUARIOS - Endpoints
+
+### 1. Registrar Nuevo Usuario
+```
+POST /api/usuarios/registro
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez",
+  "email": "juan@example.com",
+  "password": "miPassword123",
+  "telefono": "+34 612 345 678",
+  "latitudCasa": -34.6037,
+  "longitudCasa": -58.3816
+}
+
+Respuesta: 201 CREATED
+```
+
+### 2. Listar Todos los Usuarios
+```
+GET /api/usuarios
+
+Respuesta: 200 OK
+Array de usuarios
+```
+
+### 3. Obtener Usuario por ID
+```
+GET /api/usuarios/{id}
+
+Ejemplo: GET /api/usuarios/1
+Respuesta: 200 OK
+```
+
+### 4. Obtener Usuario por Email
+```
+GET /api/usuarios/email/{email}
+
+Ejemplo: GET /api/usuarios/email/juan@example.com
+Respuesta: 200 OK
+```
+
+### 5. Buscar Usuarios por Nombre
+```
+GET /api/usuarios/buscar?nombre={nombre}
+
+Ejemplo: GET /api/usuarios/buscar?nombre=Juan
+Respuesta: 200 OK (Array de usuarios que coinciden)
+```
+
+### 6. Actualizar Perfil de Usuario
+```
+PUT /api/usuarios/{usuarioId}
+Content-Type: application/json
+
+{
+  "nombre": "Juan Pérez Actualizado",
+  "telefono": "+34 612 999 999",
+  "latitudCasa": -34.5997,
+  "longitudCasa": -58.3756
+}
+
+Respuesta: 200 OK
+Restricciones:
+  ❌ No puedes cambiar email
+  ❌ No puedes cambiar password (usa cambiar-password)
+```
+
+### 7. Cambiar Contraseña
+```
+POST /api/usuarios/{usuarioId}/cambiar-password
+Content-Type: application/json
+
+{
+  "passwordActual": "miPassword123",
+  "passwordNueva": "nuevoPassword456"
+}
+
+Respuesta: 204 NO CONTENT
+Requiere: Contraseña actual correcta
+```
+
+### 8. Eliminar Usuario
+```
+DELETE /api/usuarios/{usuarioId}
+
+Respuesta: 204 NO CONTENT
+Restricción: No puede tener mascotas registradas
+```
+
+---
+
+## 🐾 MASCOTAS - Endpoints
+
+### 1. Crear Mascota
+```
+POST /api/mascotas/usuario/{usuarioId}
+Content-Type: application/json
+
+{
+  "nombre": "Firulais",
+  "especie": "Perro",
+  "raza": "Labrador",
+  "fotoUrl": "https://ejemplo.com/foto.jpg"
+}
+
+Respuesta: 201 CREATED
+Requiere: Usuario debe existir
+```
+
+### 2. Listar Todas las Mascotas
+```
+GET /api/mascotas
+
+Respuesta: 200 OK
+Array de todas las mascotas
+```
+
+### 3. Obtener Mascota por ID
+```
+GET /api/mascotas/{id}
+
+Ejemplo: GET /api/mascotas/1
+Respuesta: 200 OK
+```
+
+### 4. Obtener Mascotas de un Usuario
+```
+GET /api/mascotas/usuario/{usuarioId}
+
+Ejemplo: GET /api/mascotas/usuario/1
+Respuesta: 200 OK (Array de mascotas del usuario)
+```
+
+### 5. Búsqueda General de Mascotas
+```
+GET /api/mascotas/buscar?nombre={nombre}
+
+Ejemplo: GET /api/mascotas/buscar?nombre=Firu
+Respuesta: 200 OK (Array de mascotas que coinciden)
+```
+
+### 6. Búsqueda de Mascotas por Usuario
+```
+GET /api/mascotas/usuario/{usuarioId}/buscar?nombre={nombre}
+
+Ejemplo: GET /api/mascotas/usuario/1/buscar?nombre=Firu
+Respuesta: 200 OK
+```
+
+### 7. Actualizar Mascota
+```
+PUT /api/mascotas/{mascotaId}/usuario/{usuarioId}
+Content-Type: application/json
+
+{
+  "nombre": "Firulais Actualizado",
+  "especie": "Perro",
+  "raza": "Golden Retriever",
+  "fotoUrl": "https://ejemplo.com/nueva-foto.jpg"
+}
+
+Respuesta: 200 OK
+Restricción: Solo el dueño puede actualizar
+```
+
+### 8. Eliminar Mascota
+```
+DELETE /api/mascotas/{mascotaId}/usuario/{usuarioId}
+
+Respuesta: 204 NO CONTENT
+Restricción: Solo el dueño puede eliminar
+```
+
+---
+
+## 📊 Códigos de Estado HTTP
+
+| Código | Significado | Uso |
+|--------|-------------|-----|
+| 200 | OK | Operación GET/PUT exitosa |
+| 201 | Created | Recurso creado exitosamente |
+| 204 | No Content | Operación DELETE/POST sin respuesta exitosa |
+| 400 | Bad Request | Datos inválidos o validación fallida |
+| 401 | Unauthorized | Autenticación fallida (password incorrecto) |
+| 403 | Forbidden | Sin permisos (no es el dueño) |
+| 404 | Not Found | Recurso no encontrado |
+| 409 | Conflict | Conflicto de datos (usuario con mascotas) |
+
+---
+
+## 💡 Ejemplos Prácticos
+
+### Flujo Completo: Registrar Usuario con Mascota
+
+#### 1. Registrar usuario
+```bash
+curl -X POST http://localhost:8080/api/usuarios/registro \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Juan Pérez",
+    "email": "juan@example.com",
+    "password": "miPassword123"
+  }'
+
+# Respuesta: { "id": 1, "nombre": "Juan Pérez", ... }
+```
+
+#### 2. Registrar mascota del usuario
+```bash
+curl -X POST http://localhost:8080/api/mascotas/usuario/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Firulais",
+    "especie": "Perro",
+    "raza": "Labrador"
+  }'
+
+# Respuesta: { "id": 1, "nombre": "Firulais", "duenio": { "id": 1, ... } }
+```
+
+#### 3. Buscar la mascota
+```bash
+curl http://localhost:8080/api/mascotas/usuario/1/buscar?nombre=Firu
+
+# Respuesta: Array con mascotas que coinciden
+```
+
+#### 4. Actualizar mascota
+```bash
+curl -X PUT http://localhost:8080/api/mascotas/1/usuario/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Firulais Actualizado",
+    "raza": "Golden Retriever"
+  }'
+
+# Respuesta: Mascota actualizada
+```
+
+#### 5. Cambiar contraseña del usuario
+```bash
+curl -X POST http://localhost:8080/api/usuarios/1/cambiar-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "passwordActual": "miPassword123",
+    "passwordNueva": "nuevoPassword456"
+  }'
+
+# Respuesta: 204 No Content
+```
+
+---
+
+### Operación Fallida: Intento de Modificación No Autorizada
+
+```bash
+# Usuario 2 intenta actualizar mascota del usuario 1
+curl -X PUT http://localhost:8080/api/mascotas/1/usuario/2 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Intento de hackeo"
+  }'
+
+# Respuesta: 403 FORBIDDEN
+# Mensaje: "No tienes permiso para actualizar esta mascota"
+```
+
+---
+
+## 📖 Documentación Detallada
+
+Para información más completa, consulta:
+
+### Usuarios:
+- **Archivo:** `API_USUARIOS_DOCUMENTACION.md`
+- **Contenido:** Documentación detallada de todos los endpoints de usuarios
+- **Incluye:** Validaciones, ejemplos, errores comunes
+
+### Mascotas:
+- **Archivo:** `API_MASCOTAS_DOCUMENTACION.md`
+- **Contenido:** Documentación detallada de todos los endpoints de mascotas
+- **Incluye:** Validaciones de seguridad, ejemplos, casos de uso
+
+### Pruebas:
+- **Archivo:** `PRUEBAS_API_USUARIOS.md`
+- **Contenido:** Casos de prueba para usuarios
+- **Incluye:** Casos exitosos, errores esperados, scripts PowerShell
+
+- **Archivo:** `PRUEBAS_API_MASCOTAS.md`
+- **Contenido:** Casos de prueba para mascotas
+- **Incluye:** Casos exitosos, errores esperados, scripts PowerShell
+
+---
+
+## 🚀 Inicio Rápido
+
+### 1. **Iniciar el servidor**
+```bash
+docker-compose up
+```
+
+### 2. **Registrar un usuario**
+```bash
+curl -X POST http://localhost:8080/api/usuarios/registro \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Tu Nombre",
+    "email": "tu@email.com",
+    "password": "password123"
+  }'
+```
+
+### 3. **Obtener el ID del usuario** (de la respuesta anterior)
+
+### 4. **Registrar una mascota**
+```bash
+curl -X POST http://localhost:8080/api/mascotas/usuario/{usuarioId} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Mi Mascota",
+    "especie": "Perro",
+    "raza": "Labrador"
+  }'
+```
+
+### 5. **Probar otros endpoints**
+
+---
+
+## 🔧 Herramientas Recomendadas para Pruebas
+
+1. **Postman** - GUI interactivo para pruebas API
+2. **cURL** - Cliente HTTP desde línea de comandos
+3. **PowerShell** - Scripts de prueba automatizadas
+4. **Thunder Client** - Extensión de VS Code
+5. **REST Client** - Extensión de VS Code
+
+---
+
+## 📋 Checklist de Verificación
+
+- [ ] Servidor Docker iniciado correctamente
+- [ ] Conexión a base de datos verificada
+- [ ] Registro de usuario funciona
+- [ ] Búsqueda de usuarios funciona
+- [ ] Actualización de perfil funciona
+- [ ] Cambio de contraseña funciona
+- [ ] Creación de mascotas funciona
+- [ ] Búsqueda de mascotas funciona
+- [ ] Actualización de mascotas funciona (solo dueño)
+- [ ] Eliminación de mascotas funciona (solo dueño)
+- [ ] Eliminación de usuario (sin mascotas) funciona
+- [ ] Códigos HTTP son correctos
+
+---
+
+## ⚠️ Notas Importantes
+
+1. **CORS:** Está habilitado con `@CrossOrigin(origins = "*")`. En producción, deberías restringir los orígenes permitidos.
+
+2. **Contraseñas:** Actualmente se almacenan en texto plano. **En producción, debes usar BCrypt u otro método de hash seguro.**
+
+3. **Autenticación:** No hay sistema JWT implementado. Considera agregarlo para seguridad real.
+
+4. **Validación:** Se realiza tanto en servicio como en controlador. Considera agregar `@Valid` y anotaciones de validación.
+
+5. **Logging:** Se recomienda agregar logging para auditoría y debugging.
+
+---
+
+## 📞 Soporte y Contacto
+
+Para problemas, reportes de bugs o sugerencias:
+- Consulta la documentación específica de cada recurso
+- Revisa los casos de prueba para ejemplos
+- Verifica los logs del servidor para mensajes de error
+
+---
+
+## 📝 Historial de Cambios
+
+| Versión | Fecha | Cambios |
+|---------|-------|---------|
+| 1.0 | 2026-02-24 | Documentación completa inicial |
+
+---
+
+**Última actualización:** 2026-02-24  
+**Estado:** ✅ Producción lista (con mejoras de seguridad recomendadas)
+
