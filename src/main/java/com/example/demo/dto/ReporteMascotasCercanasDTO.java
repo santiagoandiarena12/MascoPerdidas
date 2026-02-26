@@ -10,6 +10,7 @@ public class ReporteMascotasCercanasDTO {
     private String titulo;
     private String nombreMascota;
     private String especie;
+    private String fotoUrl;
     private String descripcion;
     private Double latitudReporte;
     private Double longitudReporte;

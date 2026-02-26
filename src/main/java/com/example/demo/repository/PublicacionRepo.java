@@ -11,4 +11,5 @@ import java.util.List;
 public interface PublicacionRepo extends JpaRepository<Publicacion, Long> {
     List<Publicacion> findByTipo(TipoPublicacion tipo);
     List<Publicacion> findByAutorId(Long usuarioId);
+    boolean existsByMascotaIdAndTipo(Long mascotaId, TipoPublicacion tipo);
 }

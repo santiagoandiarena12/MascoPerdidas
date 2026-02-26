@@ -32,8 +32,20 @@ public class PublicacionService {
 
     // CREATE
     public Publicacion crearPublicacion(Long uId, Long mId, Publicacion p) {
-        Usuario autor = usuarioRepo.findById(uId).orElseThrow();
-        Mascota mascota = mascotaRepo.findById(mId).orElseThrow();
+        Usuario autor = usuarioRepo.findById(uId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Mascota mascota = mascotaRepo.findById(mId)
+                .orElseThrow(() -> new RuntimeException("Mascota no encontrada"));
+
+        if (mascota.getDuenio() == null || !mascota.getDuenio().getId().equals(uId)) {
+            throw new RuntimeException("La mascota no pertenece al usuario indicado");
+        }
+
+        // Validar que no exista ya una publicación PERDIDA para esta mascota
+        if (p.getTipo() == TipoPublicacion.PERDIDA &&
+            publicacionRepo.existsByMascotaIdAndTipo(mId, TipoPublicacion.PERDIDA)) {
+            throw new RuntimeException("Ya existe una publicacion PERDIDA para esta mascota");
+        }
 
         p.setAutor(autor);
         p.setMascota(mascota);
@@ -137,6 +149,7 @@ public class PublicacionService {
                         p.getTitulo(),
                         p.getMascota().getNombre(),
                         p.getMascota().getEspecie(),
+                        p.getMascota().getFotoUrl(),
                         p.getDescripcion(),
                         p.getLatitudReporte(),
                         p.getLongitudReporte(),

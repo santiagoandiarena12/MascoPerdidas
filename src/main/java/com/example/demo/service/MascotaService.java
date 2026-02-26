@@ -24,9 +24,7 @@ public class MascotaService {
         Usuario duenio = usuarioRepo.findById(usuarioId)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + usuarioId));
 
-        validarDatosMascota(mascota);
         mascota.setDuenio(duenio);
-
         return mascotaRepo.save(mascota);
     }
 
@@ -50,9 +48,6 @@ public class MascotaService {
 
     // READ - buscar por nombre
     public List<Mascota> buscarMascotasPorNombre(String nombre) {
-        if (nombre == null || nombre.trim().isEmpty()) {
-            throw new RuntimeException("El nombre de búsqueda no puede estar vacío");
-        }
         return mascotaRepo.findByNombreContainingIgnoreCase(nombre);
     }
 
@@ -60,9 +55,6 @@ public class MascotaService {
     public List<Mascota> buscarDelUsuario(Long usuarioId, String nombre) {
         if (!usuarioRepo.existsById(usuarioId)) {
             throw new RuntimeException("Usuario no encontrado con ID: " + usuarioId);
-        }
-        if (nombre == null || nombre.trim().isEmpty()) {
-            throw new RuntimeException("El nombre de búsqueda no puede estar vacío");
         }
         return mascotaRepo.findByDuenioIdAndNombreContainingIgnoreCase(usuarioId, nombre);
     }
@@ -75,8 +67,6 @@ public class MascotaService {
         if (!esDuenio(existente, usuarioId)) {
             throw new RuntimeException("No tienes permiso para actualizar esta mascota");
         }
-
-        validarDatosMascota(mascotaActualizada);
 
         existente.setNombre(mascotaActualizada.getNombre());
         existente.setEspecie(mascotaActualizada.getEspecie());
@@ -103,17 +93,5 @@ public class MascotaService {
     // Helpers
     private boolean esDuenio(Mascota mascota, Long usuarioId) {
         return mascota.getDuenio() != null && mascota.getDuenio().getId().equals(usuarioId);
-    }
-
-    private void validarDatosMascota(Mascota mascota) {
-        if (mascota.getNombre() == null || mascota.getNombre().trim().isEmpty()) {
-            throw new RuntimeException("El nombre de la mascota es obligatorio");
-        }
-        if (mascota.getEspecie() == null || mascota.getEspecie().trim().isEmpty()) {
-            throw new RuntimeException("La especie de la mascota es obligatoria");
-        }
-        if (mascota.getNombre().length() > 50) {
-            throw new RuntimeException("El nombre de la mascota no puede exceder 50 caracteres");
-        }
     }
 }

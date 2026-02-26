@@ -1,11 +1,14 @@
 package com.example.demo.controller;
 
-import com.example.demo.error.ErrorResponse;
 import com.example.demo.entity.Mascota;
 import com.example.demo.service.MascotaService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mascotas")
 @CrossOrigin(origins = "*")
+@Validated
 public class MascotaController {
 
     @Autowired
@@ -20,21 +24,11 @@ public class MascotaController {
 
     // CREATE
     @PostMapping("/usuario/{usuarioId}")
-    public ResponseEntity<?> crear(
-            @PathVariable Long usuarioId,
-            @RequestBody Mascota mascota) {
-        try {
-            Mascota nueva = mascotaService.registrarMascota(usuarioId, mascota);
-            return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
-        } catch (RuntimeException e) {
-            ErrorResponse error = new ErrorResponse(
-                400,
-                "Bad Request",
-                e.getMessage(),
-                "/api/mascotas/usuario/" + usuarioId
-            );
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
+    public ResponseEntity<Mascota> crear(
+            @PathVariable @Positive Long usuarioId,
+            @RequestBody @Valid Mascota mascota) {
+        Mascota nueva = mascotaService.registrarMascota(usuarioId, mascota);
+        return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
     }
 
     // READ - todas
@@ -45,112 +39,48 @@ public class MascotaController {
 
     // READ - por ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<Mascota> obtenerPorId(@PathVariable @Positive Long id) {
         return mascotaService.obtenerPorId(id)
-                .map(mascota -> ResponseEntity.ok((Object) mascota))
-                .orElseGet(() -> {
-                    ErrorResponse error = new ErrorResponse(
-                        404,
-                        "Not Found",
-                        "Mascota no encontrada con ID: " + id,
-                        "/api/mascotas/" + id
-                    );
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-                });
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new RuntimeException("Mascota no encontrada con ID: " + id));
     }
 
     // READ - por usuario
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<?> listarPorUsuario(@PathVariable Long usuarioId) {
-        try {
-            return ResponseEntity.ok(mascotaService.obtenerMascotasDeUsuario(usuarioId));
-        } catch (RuntimeException e) {
-            ErrorResponse error = new ErrorResponse(
-                404,
-                "Not Found",
-                e.getMessage(),
-                "/api/mascotas/usuario/" + usuarioId
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        }
+    public ResponseEntity<List<Mascota>> listarPorUsuario(@PathVariable @Positive Long usuarioId) {
+        return ResponseEntity.ok(mascotaService.obtenerMascotasDeUsuario(usuarioId));
     }
 
     // SEARCH - por nombre
     @GetMapping("/buscar")
-    public ResponseEntity<?> buscar(@RequestParam String nombre) {
-        try {
-            return ResponseEntity.ok(mascotaService.buscarMascotasPorNombre(nombre));
-        } catch (RuntimeException e) {
-            ErrorResponse error = new ErrorResponse(
-                400,
-                "Bad Request",
-                e.getMessage(),
-                "/api/mascotas/buscar"
-            );
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
+    public ResponseEntity<List<Mascota>> buscar(@RequestParam @NotBlank String nombre) {
+        return ResponseEntity.ok(mascotaService.buscarMascotasPorNombre(nombre));
     }
 
     // SEARCH - por usuario + nombre
     @GetMapping("/usuario/{usuarioId}/buscar")
-    public ResponseEntity<?> buscarMisMascotas(
-            @PathVariable Long usuarioId,
-            @RequestParam String nombre) {
-        try {
-            return ResponseEntity.ok(mascotaService.buscarDelUsuario(usuarioId, nombre));
-        } catch (RuntimeException e) {
-            ErrorResponse error = new ErrorResponse(
-                400,
-                "Bad Request",
-                e.getMessage(),
-                "/api/mascotas/usuario/" + usuarioId + "/buscar"
-            );
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-        }
+    public ResponseEntity<List<Mascota>> buscarMisMascotas(
+            @PathVariable @Positive Long usuarioId,
+            @RequestParam @NotBlank String nombre) {
+        return ResponseEntity.ok(mascotaService.buscarDelUsuario(usuarioId, nombre));
     }
 
     // UPDATE - con verificación de dueño
     @PutMapping("/{mascotaId}/usuario/{usuarioId}")
-    public ResponseEntity<?> actualizar(
-            @PathVariable Long mascotaId,
-            @PathVariable Long usuarioId,
-            @RequestBody Mascota mascota) {
-        try {
-            Mascota actualizada = mascotaService.actualizarMascota(mascotaId, usuarioId, mascota);
-            return ResponseEntity.ok(actualizada);
-        } catch (RuntimeException e) {
-            int statusCode = e.getMessage().contains("permiso") ? 403 : 404;
-            String errorType = statusCode == 403 ? "Forbidden" : "Not Found";
-
-            ErrorResponse error = new ErrorResponse(
-                statusCode,
-                errorType,
-                e.getMessage(),
-                "/api/mascotas/" + mascotaId + "/usuario/" + usuarioId
-            );
-            return ResponseEntity.status(statusCode).body(error);
-        }
+    public ResponseEntity<Mascota> actualizar(
+            @PathVariable @Positive Long mascotaId,
+            @PathVariable @Positive Long usuarioId,
+            @RequestBody @Valid Mascota mascota) {
+        Mascota actualizada = mascotaService.actualizarMascota(mascotaId, usuarioId, mascota);
+        return ResponseEntity.ok(actualizada);
     }
 
     // DELETE - con verificación de dueño
     @DeleteMapping("/{mascotaId}/usuario/{usuarioId}")
-    public ResponseEntity<?> eliminar(
-            @PathVariable Long mascotaId,
-            @PathVariable Long usuarioId) {
-        try {
-            mascotaService.eliminarMascota(mascotaId, usuarioId);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            int statusCode = e.getMessage().contains("permiso") ? 403 : 404;
-            String errorType = statusCode == 403 ? "Forbidden" : "Not Found";
-
-            ErrorResponse error = new ErrorResponse(
-                statusCode,
-                errorType,
-                e.getMessage(),
-                "/api/mascotas/" + mascotaId + "/usuario/" + usuarioId
-            );
-            return ResponseEntity.status(statusCode).body(error);
-        }
+    public ResponseEntity<Void> eliminar(
+            @PathVariable @Positive Long mascotaId,
+            @PathVariable @Positive Long usuarioId) {
+        mascotaService.eliminarMascota(mascotaId, usuarioId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 @Service
 public class UsuarioService {
@@ -15,15 +14,10 @@ public class UsuarioService {
     @Autowired
     private UsuarioRepo usuarioRepo;
 
-    private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
-
     // CREATE
     public Usuario registrar(Usuario usuario) {
-        validarDatosRegistro(usuario);
-
         if (usuarioRepo.existsByEmail(usuario.getEmail())) {
-            throw new RuntimeException("El email ya está registrado: " + usuario.getEmail());
+            throw new RuntimeException("El email ya esta registrado: " + usuario.getEmail());
         }
 
         return usuarioRepo.save(usuario);
@@ -36,26 +30,17 @@ public class UsuarioService {
 
     // READ - obtener por ID
     public Optional<Usuario> obtenerPorId(Long id) {
-        if (id == null || id <= 0) {
-            throw new RuntimeException("ID de usuario inválido");
-        }
         return usuarioRepo.findById(id);
     }
 
     // READ - obtener por email
     public Usuario obtenerPorEmail(String email) {
-        if (email == null || email.trim().isEmpty()) {
-            throw new RuntimeException("El email no puede estar vacío");
-        }
         return usuarioRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + email));
     }
 
     // READ - buscar por nombre
     public List<Usuario> buscarPorNombre(String nombre) {
-        if (nombre == null || nombre.trim().isEmpty()) {
-            throw new RuntimeException("El nombre de búsqueda no puede estar vacío");
-        }
         return usuarioRepo.findByNombreContainingIgnoreCase(nombre);
     }
 
@@ -96,8 +81,6 @@ public class UsuarioService {
             throw new RuntimeException("La contraseña actual es incorrecta");
         }
 
-        validarPassword(passwordNueva);
-
         existente.setPassword(passwordNueva);
         return usuarioRepo.save(existente);
     }
@@ -116,30 +99,6 @@ public class UsuarioService {
     }
 
     // Helpers
-    private void validarDatosRegistro(Usuario usuario) {
-        if (usuario.getNombre() == null || usuario.getNombre().trim().isEmpty()) {
-            throw new RuntimeException("El nombre del usuario es obligatorio");
-        }
-
-        if (usuario.getEmail() == null || usuario.getEmail().trim().isEmpty()) {
-            throw new RuntimeException("El email del usuario es obligatorio");
-        }
-
-        if (!EMAIL_PATTERN.matcher(usuario.getEmail()).matches()) {
-            throw new RuntimeException("El formato del email es inválido");
-        }
-
-        validarPassword(usuario.getPassword());
-
-        if (usuario.getNombre().length() > 100) {
-            throw new RuntimeException("El nombre no puede exceder 100 caracteres");
-        }
-
-        if (usuario.getEmail().length() > 100) {
-            throw new RuntimeException("El email no puede exceder 100 caracteres");
-        }
-    }
-
     private void validarDatosActualizacion(Usuario usuario, Long usuarioId) {
         // Verificar que no intente cambiar email
         Usuario existente = usuarioRepo.findById(usuarioId).orElse(null);
@@ -152,24 +111,6 @@ public class UsuarioService {
         if (usuario.getPassword() != null &&
                 !usuario.getPassword().equals(existente.getPassword())) {
             throw new RuntimeException("Usa el endpoint de cambiar contraseña");
-        }
-
-        if (usuario.getNombre() != null && usuario.getNombre().length() > 100) {
-            throw new RuntimeException("El nombre no puede exceder 100 caracteres");
-        }
-    }
-
-    private void validarPassword(String password) {
-        if (password == null || password.trim().isEmpty()) {
-            throw new RuntimeException("La contraseña es obligatoria");
-        }
-
-        if (password.length() < 6) {
-            throw new RuntimeException("La contraseña debe tener al menos 6 caracteres");
-        }
-
-        if (password.length() > 100) {
-            throw new RuntimeException("La contraseña no puede exceder 100 caracteres");
         }
     }
 }
