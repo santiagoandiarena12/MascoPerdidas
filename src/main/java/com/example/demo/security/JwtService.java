@@ -1,5 +1,6 @@
 package com.example.demo.security;
 
+import com.example.demo.entity.Usuario;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
@@ -9,22 +10,26 @@ import java.util.Date;
 
 @Service
 public class JwtService {
-    // Usá una clave secreta larga de al menos 64 caracteres
-    private static final String SECRET_KEY = "rMP5bd7thatsjBknGKGNTRJCfTm9J43wSFiL8sqU46aKvVN9TynyPVDoNAXRnATNT+c7SMVmSdm51OIBCTJ0xA==";
+    private static final String SECRET_KEY = "tu_clave_secreta_muy_larga_para_mascoperdidas_2026_segura";
     private final SecretKey key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
-    public String generarToken(String email) {
+    // Al generar el token, le pasamos el OBJETO Usuario completo para sacar su rol
+    public String generarToken(Usuario usuario) {
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(usuario.getEmail())
+                .claim("rol", usuario.getRol().name()) // Guardamos "ROLE_ADMIN" o "ROLE_USER"
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24hs
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
                 .signWith(key)
                 .compact();
     }
 
     public String extraerEmail(String token) {
-        return Jwts.parserBuilder().setSigningKey(key).build()
-                .parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public String extraerRol(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("rol", String.class);
     }
 
     public boolean esTokenValido(String token) {

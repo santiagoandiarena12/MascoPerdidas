@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -71,9 +72,11 @@ public class PublicacionController {
         return ResponseEntity.ok(actualizada);
     }
 
-    // DELETE
+    // Solo entran si: Son ADMIN -O- son el dueño de esta publicación en particular
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @seguridadService.esDuenioDePublicacion(#id, authentication.name)")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarPublicacion(@PathVariable @Positive Long id) {
+    public ResponseEntity<?> eliminarPublicacion(@PathVariable Long id) {
+        // Tu Service ahora es súper simple, solo hace .deleteById(id)
         publicacionService.eliminarPublicacion(id);
         return ResponseEntity.noContent().build();
     }

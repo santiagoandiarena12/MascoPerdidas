@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -41,10 +42,12 @@ public class Usuario {
     private String telefono;
 
     // Coordenadas del domicilio para el sistema de alertas por radio de 2km
+    @NotNull(message = "latitud obligatoria", groups = CreateValidation.class)
     @DecimalMin(value = "-90.0", message = "Latitud fuera de rango")
     @DecimalMax(value = "90.0", message = "Latitud fuera de rango")
     private Double latitudCasa;
 
+    @NotNull(message = "longitud obligatoria", groups = CreateValidation.class)
     @DecimalMin(value = "-180.0", message = "Longitud fuera de rango")
     @DecimalMax(value = "180.0", message = "Longitud fuera de rango")
     private Double longitudCasa;

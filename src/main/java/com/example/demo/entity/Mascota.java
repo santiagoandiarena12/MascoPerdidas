@@ -33,6 +33,6 @@ public class Mascota {
     @JsonIncludeProperties({"id"})
     private Usuario duenio;
 
-    @OneToMany(mappedBy = "mascota")
+    @OneToMany(mappedBy = "mascota", cascade = CascadeType.ALL)
     private List<Publicacion> historialPublicaciones;
 }
