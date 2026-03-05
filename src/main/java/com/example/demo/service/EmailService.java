@@ -8,7 +8,10 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class EmailService {
@@ -16,6 +19,7 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Async
     public void enviarAlertaCercana(Usuario u, Publicacion p, double dist) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -40,6 +44,24 @@ public class EmailService {
             mailSender.send(message);
         } catch (MessagingException e) {
             throw new RuntimeException("Error al enviar el email HTML", e);
+        }
+    }
+
+    @Async
+    public void procesarAlertasVecinales(List<Usuario> vecinos, Publicacion p) {
+        for (Usuario vecino : vecinos) {
+            try {
+                // Acá mandás el mail real (reutilizá tu código de envío)
+                enviarAlertaCercana(vecino, p, 0.0);
+                System.out.println("!! EMAIL ENVIADO A: " + vecino.getNombre());
+
+                // EL HILO SECUNDARIO duerme, Postman ni se entera
+                Thread.sleep(1100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                System.err.println("Fallo el envío a " + vecino.getNombre());
+            }
         }
     }
 }

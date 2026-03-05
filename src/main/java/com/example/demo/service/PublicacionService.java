@@ -54,15 +54,21 @@ public class PublicacionService {
         if (p.getTipo() == TipoPublicacion.PERDIDA) {
             System.out.println("Iniciando alerta vecinal para: " + mascota.getNombre());
             List<Usuario> todos = usuarioRepo.findAll();
+            List<Usuario> vecinosCercanos = new ArrayList<>();
 
+            // 1. Filtramos rápido a los que están cerca (tarda milisegundos)
             for (Usuario u : todos) {
                 double dist = calcularDistancia(p.getLatitudReporte(), p.getLongitudReporte(),
                         u.getLatitudCasa(), u.getLongitudCasa());
 
                 if (!u.getId().equals(uId) && dist <= 2.0) {
-                    notificarVecino(u, p, dist);
-                    esperarParaMailtrap();
+                    vecinosCercanos.add(u);
                 }
+            }
+
+            // 2. Le tiramos el paquete al EmailService y nos desentendemos
+            if (!vecinosCercanos.isEmpty()) {
+                emailService.procesarAlertasVecinales(vecinosCercanos, p);
             }
         }
         else if (p.getTipo() == TipoPublicacion.ENCONTRADA) {
@@ -117,15 +123,6 @@ public class PublicacionService {
             throw new RuntimeException("Publicación no encontrada");
         }
         publicacionRepo.deleteById(id);
-    }
-
-    // Métodos auxiliares existentes
-    private void esperarParaMailtrap() {
-        try {
-            Thread.sleep(1100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private void notificarVecino(Usuario u, Publicacion p, double dist) {
