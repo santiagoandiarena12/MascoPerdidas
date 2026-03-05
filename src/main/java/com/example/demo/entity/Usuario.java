@@ -20,6 +20,9 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
+    private Rol rol = Rol.ROLE_USER;
+
     @NotBlank(message = "El nombre del usuario es obligatorio", groups = CreateValidation.class)
     @Size(max = 100, message = "El nombre no puede exceder 100 caracteres")
     private String nombre;

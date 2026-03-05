@@ -10,12 +10,14 @@ Este documento proporciona una guía completa de todos los endpoints disponibles
 
 1. [Visión General](#visión-general)
 2. [Estructura de la API](#estructura-de-la-api)
-3. [Autenticación y Seguridad](#autenticación-y-seguridad)
-4. [Usuarios - Endpoints](#usuarios---endpoints)
-5. [Mascotas - Endpoints](#mascotas---endpoints)
-6. [Publicaciones - Endpoints](#publicaciones---endpoints)
-7. [Códigos de Estado HTTP](#códigos-de-estado-http)
-8. [Ejemplos Prácticos](#ejemplos-prácticos)
+3. [JWT y Autenticación](#jwt-y-autenticación)
+4. [Sistema de Roles](#sistema-de-roles)
+5. [Validaciones y Seguridad](#validaciones-y-seguridad)
+6. [Usuarios - Endpoints](#usuarios---endpoints)
+7. [Mascotas - Endpoints](#mascotas---endpoints)
+8. [Publicaciones - Endpoints](#publicaciones---endpoints)
+9. [Códigos de Estado HTTP](#códigos-de-estado-http)
+10. [Ejemplos Prácticos](#ejemplos-prácticos)
 
 ---
 
@@ -42,6 +44,7 @@ API Base: http://localhost:8080/api
 │   ├── GET    /buscar?nombre={nombre}      → Buscar usuarios por nombre
 │   ├── PUT    /{usuarioId}                 → Actualizar perfil
 │   ├── POST   /{usuarioId}/cambiar-password → Cambiar contraseña
+│   ├── PATCH  /{usuarioId}/rol            → Cambiar rol (ADMIN/USER)
 │   └── DELETE /{usuarioId}                 → Eliminar usuario
 │
 ├── /mascotas
@@ -67,9 +70,142 @@ API Base: http://localhost:8080/api
 
 ---
 
-## 🔒 Autenticación y Seguridad
+## 🔐 JWT y Autenticación
 
-### Verificaciones Implementadas
+### ¿Qué es JWT?
+JWT (JSON Web Token) es un sistema de autenticación basado en tokens que permite autenticar usuarios de forma segura y sin mantener sesiones en el servidor.
+
+### Flujo de Autenticación
+
+#### 1. Login - Obtener Token
+```
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "usuario@example.com",
+  "password": "password123"
+}
+
+Respuesta: 200 OK
+{
+  "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c3VhcmlvQGV4YW1wbGUuY29tIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3MDk1ODAwMDAsImV4cCI6MTcwOTY2NjQwMH0...",
+  "role": "USER",
+  "email": "usuario@example.com"
+}
+```
+
+#### 2. Usar el Token en Peticiones Protegidas
+Para cualquier endpoint protegido, incluye el token en el header:
+
+```
+Authorization: Bearer {tu_token}
+```
+
+**Ejemplo con cURL:**
+```bash
+curl -X POST http://localhost:8080/api/mascotas/usuario/1 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{"nombre": "Firulais", "especie": "Perro"}'
+```
+
+**Ejemplo con Postman:**
+1. Ve a la pestaña "Authorization"
+2. Selecciona "Bearer Token"
+3. Pega tu token en el campo
+
+### Endpoints Públicos (NO requieren token)
+- ✅ `POST /api/auth/login` - Login
+- ✅ `POST /api/usuarios/registro` - Registro de nuevo usuario
+- ✅ `GET /api/publicaciones/mapa` - Ver el mapa de mascotas
+- ✅ `GET /api/mascotas/**` - Ver todas las mascotas (cualquier GET)
+
+### Endpoints Protegidos (SÍ requieren token)
+- 🔒 Todos los `POST`, `PUT`, `PATCH`, `DELETE` de cualquier recurso
+- 🔒 `GET /api/usuarios/**` - Consultar usuarios
+- 🔒 `POST /api/publicaciones` - Crear publicaciones
+
+### Duración del Token
+- **Validez:** 24 horas
+- Después de ese tiempo, deberás hacer login nuevamente
+
+---
+
+## 👥 Sistema de Roles
+
+### Roles Disponibles
+
+#### 🙋 USER (Usuario Normal)
+- **Asignación:** Automática al registrarse
+- **Permisos actuales:** Puede realizar todas las operaciones
+- **Permisos futuros:** Se restringirán algunas operaciones administrativas
+
+#### 👑 ADMIN (Administrador)
+- **Asignación:** Manual (ver sección de migración)
+- **Permisos actuales:** Puede realizar todas las operaciones
+- **Permisos futuros:** Acceso total sin restricciones
+
+### Permisos Actuales (Temporales)
+```
+┌─────────────────────────┬──────┬────────┐
+│ Operación               │ USER │ ADMIN  │
+├─────────────────────────┼──────┼────────┤
+│ Ver mascotas públicas   │  ✅  │   ✅   │
+│ Registrarse             │  ✅  │   ✅   │
+│ Login                   │  ✅  │   ✅   │
+│ Crear mascotas          │  ✅  │   ✅   │
+│ Actualizar sus mascotas │  ✅  │   ✅   │
+│ Crear publicaciones     │  ✅  │   ✅   │
+│ Ver todos los usuarios  │  ✅  │   ✅   │
+│ Cambiar rol de usuarios │  ✅  │   ✅   │
+│ Eliminar cualquier dato │  ✅  │   ✅   │
+└─────────────────────────┴──────┴────────┘
+```
+
+### Permisos Futuros (Planeados)
+```
+┌─────────────────────────┬──────┬────────┐
+│ Operación               │ USER │ ADMIN  │
+├─────────────────────────┼──────┼────────┤
+│ Ver mascotas públicas   │  ✅  │   ✅   │
+│ Registrarse             │  ✅  │   ✅   │
+│ Login                   │  ✅  │   ✅   │
+│ Crear mascotas          │  ✅  │   ✅   │
+│ Actualizar sus mascotas │  ✅  │   ✅   │
+│ Crear publicaciones     │  ✅  │   ✅   │
+│ Ver todos los usuarios  │  ❌  │   ✅   │
+│ Cambiar rol de usuarios │  ❌  │   ✅   │
+│ Eliminar otros usuarios │  ❌  │   ✅   │
+│ Eliminar publicaciones  │  ❌  │   ✅   │
+│ Moderación de contenido │  ❌  │   ✅   │
+└─────────────────────────┴──────┴────────┘
+```
+
+### Cómo Crear un Usuario ADMIN
+
+**Opción 1: Desde la Base de Datos**
+```sql
+-- Actualizar usuario existente
+UPDATE usuario SET role = 'ADMIN' WHERE email = 'admin@example.com';
+
+-- O crear uno nuevo
+INSERT INTO usuario (nombre, email, password, role) 
+VALUES ('Administrador', 'admin@example.com', 'admin123', 'ADMIN');
+```
+
+**Opción 2: Usar el Endpoint (requiere estar logueado)**
+```bash
+PATCH /api/usuarios/{usuarioId}/rol?nuevoRol=ADMIN
+
+# Con token de cualquier usuario (por ahora)
+curl -X PATCH "http://localhost:8080/api/usuarios/1/rol?nuevoRol=ADMIN" \
+  -H "Authorization: Bearer {tu_token}"
+```
+
+---
+
+## 🔒 Validaciones y Seguridad
 
 #### 👤 En Usuarios:
 - ✅ **Email único** - No se permite duplicados
@@ -183,6 +319,25 @@ DELETE /api/usuarios/{usuarioId}
 
 Respuesta: 204 NO CONTENT
 Restricción: No puede tener mascotas registradas
+```
+
+### 9. Cambiar Rol de Usuario
+```
+PATCH /api/usuarios/{usuarioId}/rol?nuevoRol={ADMIN|USER}
+
+Ejemplo: PATCH /api/usuarios/5/rol?nuevoRol=ADMIN
+
+Respuesta: 200 OK
+{
+  "id": 5,
+  "nombre": "Juan Pérez",
+  "email": "juan@example.com",
+  "role": "ADMIN",
+  ...
+}
+
+Nota: A futuro este endpoint estará restringido solo para ADMIN
+Valores válidos: USER, ADMIN
 ```
 
 ---
@@ -393,12 +548,31 @@ curl -X POST http://localhost:8080/api/usuarios/registro \
     "longitudCasa": -58.3816
   }'
 
-# Respuesta: { "id": 1, "nombre": "Juan Pérez", ... }
+# Respuesta: { "id": 1, "nombre": "Juan Pérez", "role": "USER", ... }
 ```
 
-#### 2. Registrar mascota del usuario
+#### 2. Hacer login para obtener token
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "juan@example.com",
+    "password": "miPassword123"
+  }'
+
+# Respuesta: 
+# {
+#   "token": "eyJhbGciOiJIUzUxMiJ9...",
+#   "role": "USER",
+#   "email": "juan@example.com"
+# }
+# ⚠️ GUARDA EL TOKEN - Lo necesitarás para las siguientes peticiones
+```
+
+#### 3. Registrar mascota del usuario (con token)
 ```bash
 curl -X POST http://localhost:8080/api/mascotas/usuario/1 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Firulais",
@@ -409,9 +583,10 @@ curl -X POST http://localhost:8080/api/mascotas/usuario/1 \
 # Respuesta: { "id": 1, "nombre": "Firulais", "duenio": { "id": 1, ... } }
 ```
 
-#### 3. Crear publicación de mascota perdida
+#### 4. Crear publicación de mascota perdida (con token)
 ```bash
 curl -X POST "http://localhost:8080/api/publicaciones?usuarioId=1&mascotaId=1" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "Content-Type: application/json" \
   -d '{
     "titulo": "Firulais perdido en el parque",
@@ -425,7 +600,7 @@ curl -X POST "http://localhost:8080/api/publicaciones?usuarioId=1&mascotaId=1" \
 # Nota: Se envían automáticamente emails a vecinos en radio de 2km
 ```
 
-#### 4. Buscar mascotas perdidas cercanas
+#### 5. Buscar mascotas perdidas cercanas (público, no requiere token)
 ```bash
 curl "http://localhost:8080/api/publicaciones/cercanas?latitud=-34.6037&longitud=-58.3816&radioKm=5"
 
@@ -439,9 +614,10 @@ curl http://localhost:8080/api/mascotas/usuario/1/buscar?nombre=Firu
 # Respuesta: Array con mascotas que coinciden
 ```
 
-#### 6. Actualizar publicación cuando se encuentra
+#### 6. Actualizar publicación cuando se encuentra (con token)
 ```bash
 curl -X PUT http://localhost:8080/api/publicaciones/1 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "Content-Type: application/json" \
   -d '{
     "titulo": "Firulais encontrado!",
@@ -454,9 +630,10 @@ curl -X PUT http://localhost:8080/api/publicaciones/1 \
 # Respuesta: Publicación actualizada
 ```
 
-#### 7. Cambiar contraseña del usuario
+#### 7. Cambiar contraseña del usuario (con token)
 ```bash
 curl -X POST http://localhost:8080/api/usuarios/1/cambiar-password \
+  -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "Content-Type: application/json" \
   -d '{
     "passwordActual": "miPassword123",
@@ -471,8 +648,9 @@ curl -X POST http://localhost:8080/api/usuarios/1/cambiar-password \
 ### Operación Fallida: Intento de Modificación No Autorizada
 
 ```bash
-# Usuario 2 intenta actualizar mascota del usuario 1
+# Usuario 2 intenta actualizar mascota del usuario 1 (con token de usuario 2)
 curl -X PUT http://localhost:8080/api/mascotas/1/usuario/2 \
+  -H "Authorization: Bearer {token_usuario_2}" \
   -H "Content-Type: application/json" \
   -d '{
     "nombre": "Intento de hackeo"
@@ -480,6 +658,33 @@ curl -X PUT http://localhost:8080/api/mascotas/1/usuario/2 \
 
 # Respuesta: 403 FORBIDDEN
 # Mensaje: "No tienes permiso para actualizar esta mascota"
+```
+
+---
+
+### Ejemplo: Cambiar Usuario a ADMIN
+
+```bash
+# 1. Login como cualquier usuario (por ahora)
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "juan@example.com", "password": "miPassword123"}'
+
+# Respuesta: { "token": "...", "role": "USER", ... }
+
+# 2. Cambiar rol a ADMIN
+curl -X PATCH "http://localhost:8080/api/usuarios/1/rol?nuevoRol=ADMIN" \
+  -H "Authorization: Bearer {tu_token}"
+
+# Respuesta: { "id": 1, "nombre": "Juan Pérez", "role": "ADMIN", ... }
+
+# 3. Hacer login nuevamente para obtener token con rol ADMIN
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "juan@example.com", "password": "miPassword123"}'
+
+# Respuesta: { "token": "...", "role": "ADMIN", ... }
+# Ahora el token incluye el rol ADMIN
 ```
 
 ---
@@ -603,11 +808,15 @@ curl "http://localhost:8080/api/publicaciones/cercanas?latitud=-34.6037&longitud
 
 2. **Contraseñas:** Actualmente se almacenan en texto plano. **En producción, debes usar BCrypt u otro método de hash seguro.**
 
-3. **Autenticación:** No hay sistema JWT implementado. Considera agregarlo para seguridad real.
+3. **Autenticación JWT:** ✅ Sistema JWT implementado. Los tokens tienen validez de 24 horas e incluyen el rol del usuario.
 
-4. **Validación:** Se realiza tanto en servicio como en controlador. Considera agregar `@Valid` y anotaciones de validación.
+4. **Roles:** Sistema de roles ADMIN/USER implementado. Por ahora ambos tienen los mismos permisos, pero la infraestructura está lista para restricciones futuras.
 
-5. **Logging:** Se recomienda agregar logging para auditoría y debugging.
+5. **Validación:** Se usa Bean Validation con `@Valid` y anotaciones para validar datos en controladores.
+
+6. **Logging:** Se recomienda agregar logging para auditoría y debugging.
+
+7. **Migración de BD:** Después de actualizar el código, debes agregar la columna `role` a la tabla usuario. Ver archivo `MIGRACION_ROLES.md`.
 
 ---
 
@@ -625,9 +834,10 @@ Para problemas, reportes de bugs o sugerencias:
 | Versión | Fecha | Cambios |
 |---------|-------|---------|
 | 1.0 | 2026-02-24 | Documentación completa inicial |
+| 1.1 | 2026-03-04 | Sistema JWT implementado. Sistema de roles ADMIN/USER agregado |
 
 ---
 
-**Última actualización:** 2026-02-24  
-**Estado:** ✅ Producción lista (con mejoras de seguridad recomendadas)
+**Última actualización:** 2026-03-04  
+**Estado:** ✅ Sistema JWT y Roles implementados
 
